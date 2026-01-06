@@ -5,12 +5,16 @@ channels:
 dependencies:
   - python=3.10
   - pip
-  - numpy
   - pandas
   - scikit-learn
   - nltk
-  - pip:
-    - fastapi
-    - uvicorn
-    - joblib
-    - python-multipart
+  - numpy
+  - pytorch
+  - cpuonly
+  - joblib
+  - fastapi
+  - uvicorn
+  - python-multipart
+  - sentence-transformers
+  - torch
+prefix: /Users/kyawagwin/miniconda3/envs/resume-ai

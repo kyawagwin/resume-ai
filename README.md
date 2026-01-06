@@ -1,11 +1,12 @@
 # Resume AI Classifier
 
-An intelligent resume classification system that uses machine learning to categorize resumes into different job roles. Built with FastAPI and scikit-learn, this project provides a REST API for automated resume screening.
+An intelligent resume classification system that uses machine learning to categorize resumes into different job roles. Built with FastAPI, scikit-learn, and Sentence Transformers, this project provides a REST API for automated resume screening with semantic embeddings.
 
 ## Features
 
+- **Semantic Embeddings**: Uses Sentence Transformers (all-MiniLM-L6-v2) for high-quality text representations
 - **Text Preprocessing**: Advanced text cleaning and normalization for resume data
-- **ML Classification**: Logistic Regression model trained on resume datasets
+- **ML Classification**: Logistic Regression model trained on resume embeddings
 - **REST API**: FastAPI-based API for real-time predictions
 - **Confidence Scores**: Returns prediction confidence for each classification
 - **Model Persistence**: Trained models saved for quick inference
@@ -22,11 +23,12 @@ resume-ai/
 │       └── resumes.csv      # Training dataset
 ├── models/
 │   ├── classifier.pkl       # Trained model
-│   └── vectorizer.pkl       # Feature vectorizer
+│   └── embedder.pkl         # Sentence transformer embedder
 ├── src/
 │   ├── train.py            # Model training script
 │   ├── predict.py          # Prediction functions
 │   ├── preprocessing.py    # Text preprocessing utilities
+│   ├── embeddings.py       # Sentence transformer embeddings
 │   ├── features.py         # Feature engineering
 │   └── evaluate.py         # Model evaluation
 ├── dockerfile              # Docker configuration
@@ -63,6 +65,14 @@ Or install dependencies with pip:
 pip install -r requirements.txt
 ```
 
+### Important: NumPy Compatibility
+
+If you encounter NumPy-related errors, downgrade to a compatible version:
+
+```bash
+pip install "numpy<2"
+```
+
 3. Download NLTK data (if required):
 
 ```python
@@ -82,14 +92,16 @@ python src/train.py
 This will:
 
 - Load and preprocess resume data
+- Generate semantic embeddings using Sentence Transformers
 - Train a Logistic Regression model
-- Save the model and vectorizer to `models/`
+- Save the model and embedder to `models/`
 
 ### Running the API
 
 Start the FastAPI server:
 
 ```bash
+conda activate resume-ai
 uvicorn api.main:app --reload
 ```
 
@@ -152,6 +164,7 @@ python src/evaluate.py
 
 - **FastAPI**: Modern, fast web framework for building APIs
 - **scikit-learn**: Machine learning library for classification
+- **Sentence Transformers**: State-of-the-art semantic text embeddings
 - **pandas**: Data manipulation and analysis
 - **NLTK**: Natural language processing toolkit
 - **joblib**: Model serialization

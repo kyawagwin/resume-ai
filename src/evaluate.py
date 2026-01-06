@@ -6,10 +6,10 @@ from preprocessing import clean_text
 df = pd.read_csv("data/raw/resumes.csv")
 df['cleaned_text'] = df['text'].apply(clean_text)
 
-vectorizer = joblib.load("models/vectorizer.pkl")
+embedder = joblib.load("models/embedder.pkl")
 model = joblib.load("models/classifier.pkl")
 
-X = vectorizer.transform(df['cleaned_text'])
+X = embedder.encode(df['cleaned_text'].tolist())
 y_true = df['label']
 
 y_pred = model.predict(X)
