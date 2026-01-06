@@ -1,124 +1,125 @@
-# Resume AI Classifier
+## Resume AI Classifier
 
-An intelligent resume classification system that uses machine learning to categorize resumes into different job roles. Built with FastAPI, scikit-learn, and Sentence Transformers, this project provides a REST API for automated resume screening with semantic embeddings.
+Smart resume intelligence with two modes:
+
+- **Semantic search** over resumes using FAISS and Sentence Transformers.
+- **Logistic Regression classifier** trained on the same embeddings for label prediction.
+
+The FastAPI endpoint returns top-k similar resumes with labels and similarity scores, making it useful for both retrieval and classification.
 
 ## Features
 
-- **Semantic Embeddings**: Uses Sentence Transformers (all-MiniLM-L6-v2) for high-quality text representations
-- **Text Preprocessing**: Advanced text cleaning and normalization for resume data
-- **ML Classification**: Logistic Regression model trained on resume embeddings
-- **REST API**: FastAPI-based API for real-time predictions
-- **Confidence Scores**: Returns prediction confidence for each classification
-- **Model Persistence**: Trained models saved for quick inference
-- **Dockerized**: Ready for containerized deployment
+- Sentence Transformer embeddings (`all-MiniLM-L6-v2`) with normalized vectors
+- FAISS index for fast semantic search over stored resumes
+- Logistic Regression baseline classifier (job labels)
+- Text preprocessing with stopword removal and email/number cleanup
+- FastAPI endpoint with configurable `top_k` results
+- Dockerfile for containerized deployment
 
 ## Project Structure
 
 ```
 resume-ai/
 ├── api/
-│   └── main.py              # FastAPI application
+│   └── main.py            # FastAPI app exposing /predict
 ├── data/
 │   └── raw/
-│       └── resumes.csv      # Training dataset
+│       └── resumes.csv    # Source dataset (text, label)
 ├── models/
-│   ├── classifier.pkl       # Trained model
-│   └── embedder.pkl         # Sentence transformer embedder
+│   ├── classifier.pkl     # Trained Logistic Regression model
+│   ├── embedder.pkl       # Saved SentenceTransformer wrapper
+│   ├── resume.index       # FAISS index (built)
+│   └── resume_meta.pkl    # Resume metadata aligned to the index
 ├── src/
-│   ├── train.py            # Model training script
-│   ├── predict.py          # Prediction functions
-│   ├── preprocessing.py    # Text preprocessing utilities
-│   ├── embeddings.py       # Sentence transformer embeddings
-│   ├── features.py         # Feature engineering
-│   └── evaluate.py         # Model evaluation
-├── dockerfile              # Docker configuration
-├── environment.yml         # Conda environment
-└── requirements.txt        # Python dependencies
+│   ├── embeddings.py      # SentenceTransformer wrapper
+│   ├── evaluate.py        # Classification report
+│   ├── faiss_index.py     # Build FAISS index from CSV
+│   ├── features.py        # (reserved for feature engineering)
+│   ├── predict.py         # Local prediction helper
+│   ├── preprocessing.py   # Text cleaning utilities
+│   ├── search.py          # Semantic search over FAISS
+│   └── train.py           # Train classifier + save artifacts
+├── dockerfile             # Container build
+├── environment.yml        # Conda environment (includes faiss-cpu)
+└── requirements.txt       # Pip dependencies
 ```
 
 ## Setup
 
 ### Prerequisites
 
-- Conda or Miniconda
-- Python 3.8+
+- Python 3.10 (matching `environment.yml`)
+- Conda/Miniconda recommended
 
-### Installation
+### Install
 
-1. Clone the repository:
-
-```bash
-git clone <repository-url>
-cd resume-ai
-```
-
-2. Create and activate the conda environment:
+Conda (preferred; installs `faiss-cpu`):
 
 ```bash
 conda env create -f environment.yml
 conda activate resume-ai
 ```
 
-Or install dependencies with pip:
+Pip (ensure you also install FAISS):
 
 ```bash
 pip install -r requirements.txt
+pip install faiss-cpu
 ```
 
-### Important: NumPy Compatibility
-
-If you encounter NumPy-related errors, downgrade to a compatible version:
+If you hit NumPy ABI issues, pin to a 1.x release:
 
 ```bash
 pip install "numpy<2"
 ```
 
-3. Download NLTK data (if required):
+NLTK stopwords are downloaded at runtime, but you can preload them:
 
-```python
-python -c "import nltk; nltk.download('stopwords'); nltk.download('punkt')"
+```bash
+python -c "import nltk; nltk.download('stopwords')"
 ```
 
-## Usage
+## Data
 
-### Training the Model
+Place your data in `data/raw/resumes.csv` with at least two columns:
 
-Train the classifier with your resume dataset:
+- `text`: resume body
+- `label`: target class / role
+
+## Train
+
+Train the classifier and save artifacts:
 
 ```bash
 python src/train.py
 ```
 
-This will:
+Outputs: `models/classifier.pkl` and `models/embedder.pkl`.
 
-- Load and preprocess resume data
-- Generate semantic embeddings using Sentence Transformers
-- Train a Logistic Regression model
-- Save the model and embedder to `models/`
+## Build the FAISS Index
 
-### Running the API
-
-Start the FastAPI server:
+Create the search index and metadata store:
 
 ```bash
-conda activate resume-ai
+python src/faiss_index.py
+```
+
+Outputs: `models/resume.index` and `models/resume_meta.pkl`.
+
+## Run the API
+
+Start the FastAPI server (uses the FAISS index + embedder):
+
+```bash
 uvicorn api.main:app --reload
 ```
 
-The API will be available at `http://127.0.0.1:8000`
+Docs: `http://127.0.0.1:8000/docs`
 
-### API Documentation
+## API: Semantic Search / Predict
 
-Interactive API documentation is available at:
-
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-
-### Making Predictions
-
-**Endpoint**: `POST /predict`
-
-**Request Body**:
+- **Endpoint**: `POST /predict?top_k=5`
+- **Body**:
 
 ```json
 {
@@ -126,58 +127,43 @@ Interactive API documentation is available at:
 }
 ```
 
-**Response**:
+- **Response**: list of top-k matches with labels and similarity scores
 
 ```json
 {
-  "predicted_role": "Software Engineer",
-  "confidence": 0.92
+  "results": [
+    {
+      "resume_text": "...",
+      "label": "Software Engineer",
+      "score": 0.82
+    }
+  ]
 }
 ```
 
-**Example with cURL**:
+## Evaluate
+
+Run a classification report on the dataset:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/predict" \
-     -H "Content-Type: application/json" \
-     -d '{"text": "Your resume text here..."}'
+python src/evaluate.py
 ```
 
-## Docker Deployment
+## Docker
 
-Build and run with Docker:
+Build and run:
 
 ```bash
 docker build -t resume-ai .
 docker run -p 8000:8000 resume-ai
 ```
 
-## Model Evaluation
-
-Evaluate model performance:
-
-```bash
-python src/evaluate.py
-```
-
-## Technologies
-
-- **FastAPI**: Modern, fast web framework for building APIs
-- **scikit-learn**: Machine learning library for classification
-- **Sentence Transformers**: State-of-the-art semantic text embeddings
-- **pandas**: Data manipulation and analysis
-- **NLTK**: Natural language processing toolkit
-- **joblib**: Model serialization
-- **uvicorn**: ASGI server for FastAPI
+Ensure the container has access to your data/model artifacts or bake them into the image.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Issues and PRs are welcome.
 
 ## License
 
-This project is licensed under the MIT License.
-
-## Contact
-
-For questions or feedback, please open an issue on GitHub.
+MIT
